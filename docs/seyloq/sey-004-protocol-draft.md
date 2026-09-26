@@ -10,6 +10,7 @@ This draft defines Seyloq's next architecture target. It is not an implementatio
 - RFC 9110: HTTP semantics and idempotency.
 - Tauri v2 documentation: commands, capabilities, permissions, async commands, events, channels and mobile plugin lifecycle.
 - PostgreSQL documentation: `uuid` type, transactions, unique constraints, `INSERT ... ON CONFLICT`.
+- PostgreSQL documentation: Read Committed isolation and unique-index concurrency checks.
 - SQLite documentation: storage classes, foreign keys and WAL.
 - OWASP MASVS/MASTG storage guidance.
 - Maintained UUID/ULID ecosystem docs for TypeScript, Rust and Go.
@@ -25,6 +26,8 @@ Reference URLs:
 - https://www.postgresql.org/docs/current/datatype-uuid.html
 - https://www.postgresql.org/docs/current/sql-insert.html
 - https://www.postgresql.org/docs/current/tutorial-transactions.html
+- https://www.postgresql.org/docs/current/transaction-iso.html
+- https://www.postgresql.org/docs/current/index-unique-checks.html
 - https://www.sqlite.org/datatype3.html
 - https://www.sqlite.org/foreignkeys.html
 - https://www.sqlite.org/wal.html
@@ -143,6 +146,8 @@ Optional:
 
 The client generates message and operation identity. The server validates authorization and schema.
 
+The server derives the authenticated user, device and session from the request/session context. `senderUserId` and `senderDeviceId` in the envelope are consistency checks against that context, not trusted authority. A malicious client cannot become another user or device by editing JSON.
+
 ## Acknowledgement Envelope
 
 Required:
@@ -173,13 +178,38 @@ The server records:
 
 - `senderDeviceId`
 - `idempotencyKey`
+- `operationId`
+- operation type
 - payload hash
+- lifecycle status
+- message ID
+- server sequence after success
 - operation result
+- creation and completion timestamps
 - expiry/retention metadata
 
 Same key and same payload returns the stored acknowledgement. Same key and different payload returns `conflict`. Concurrent duplicates race on the unique constraint; exactly one creates the mutation and the other receives/replays the result.
 
-Retention should be long enough to cover mobile offline retry windows. Exact duration remains open for product/storage policy.
+`operationId` is the durable identity of the client operation that the ACK reconciles. `idempotencyKey` is the server deduplication identity scoped to the sender device. They may be the same UUIDv7 in early implementations, but the protocol keeps both concepts distinct.
+
+Minimal lifecycle:
+
+```text
+processing
+  -> completed
+```
+
+The idempotency row is claimed inside the same transaction that persists the message and final ACK. If that transaction aborts, the claim is rolled back too.
+
+PostgreSQL compatibility requirement:
+
+1. Attempt to insert the `(senderDeviceId, idempotencyKey)` idempotency row with payload hash.
+2. If the insert succeeds, this transaction owns the mutation.
+3. If a concurrent uncommitted transaction already inserted that unique key, PostgreSQL unique-index checking waits for that transaction to finish and then rechecks.
+4. If the first transaction commits, the duplicate follows the conflict path and re-reads the committed idempotency result in a subsequent statement/transaction.
+5. If the first transaction aborts, no committed conflicting row exists, so the duplicate may safely claim the key and become the operation owner.
+
+Retention must be long enough to cover Seyloq's supported offline/retry window. Exact duration remains open for product/storage policy. Once the server permanently forgets an idempotency record, replay guarantees for that operation can no longer depend on that record alone.
 
 ## Server Transaction
 
@@ -188,14 +218,18 @@ BEGIN
   authenticate session
   validate device active
   validate membership
-  insert/check operation idempotency record
+  claim/check operation idempotency record
+  store operationId, operation type and payload hash
   insert message
   assign conversation serverSequence
-  record ACK payload
+  record final ACK/result payload
+  mark operation completed
 COMMIT
 ```
 
 If ACK delivery fails after commit, retry returns the stored ACK and does not create another message.
+
+The idempotency claim, message row, authoritative `serverSequence` and final ACK/result become durable together. A duplicate or failed operation must not independently create another message or obtain a distinct authoritative sequence.
 
 ## Ordering Model
 
@@ -258,9 +292,37 @@ Temporary UI order can differ while offline. Server sequence becomes authoritati
 
 Client sends M1. Server commits M1 and stores ACK. Network drops before ACK reaches client. Client retries the same operation with the same idempotency key. Server finds the existing operation result and replays the ACK. Client reconciles the existing local M1; no duplicate message is created.
 
+Final state:
+
+- one logical message
+- one `messageId`
+- one `serverSequence`
+- one logical operation
+- one stored acknowledgement replayed as needed
+
 ## Concurrent Retry Walkthrough
 
-Two identical submissions for the same operation arrive concurrently. The server transaction uses a unique `(senderDeviceId, idempotencyKey)` constraint. One transaction records the mutation. The other observes conflict/result and returns the same ACK if the payload hash matches, or `conflict` if it does not.
+Two identical submissions for the same operation arrive concurrently.
+
+Request A attempts to insert the idempotency row for `(senderDeviceId, idempotencyKey)`. Request B attempts the same insert while A's transaction is still open.
+
+PostgreSQL unique-index semantics provide the serialization point: B waits for A's transaction outcome and the uniqueness check is repeated.
+
+If A commits:
+
+1. A's transaction has durably stored the idempotency claim, message, `serverSequence` and ACK/result.
+2. B cannot insert a second row for the same unique key.
+3. B reads the committed idempotency row/result.
+4. If B's payload hash matches A's, B replays the same ACK.
+5. Committed messages remain 1.
+
+If A aborts:
+
+1. A's idempotency claim and partial mutation disappear.
+2. B's insert may proceed because no committed conflict exists.
+3. B can become the successful owner and perform the one mutation.
+
+If B has the same key but a different payload hash after A commits, B returns `conflict`. It must not overwrite A, reinterpret the key as new, or create another message.
 
 ## Security Classification
 
