@@ -38,6 +38,8 @@ export function AppShell({
   onToggleSelection,
   onClearSelection,
   onToggleReaction,
+  draftText,
+  onDraftChange,
   contextOpen,
   onContextToggle,
   theme,
@@ -59,6 +61,8 @@ export function AppShell({
   onToggleSelection: (messageId: string) => void;
   onClearSelection: () => void;
   onToggleReaction: (messageId: string, emoji: string) => void;
+  draftText: string;
+  onDraftChange: (text: string) => void;
   contextOpen: boolean;
   onContextToggle: () => void;
   theme: ThemeMode;
@@ -93,6 +97,8 @@ export function AppShell({
           onToggleSelection={onToggleSelection}
           onClearSelection={onClearSelection}
           onToggleReaction={onToggleReaction}
+          draftText={draftText}
+          onDraftChange={onDraftChange}
         />
       </main>
       {contextOpen ? <ContextPanel conversation={activeConversation} onClose={onContextToggle} /> : null}
