@@ -307,7 +307,7 @@ Use boundaries similar to:
 
 ```text
 apps/
-  relay/
+  seyloq/
     src/
       app/
       routes/
