@@ -1,17 +1,60 @@
 export type PrimarySection = "chats" | "updates" | "calls";
 export type ThemeMode = "light" | "dark";
 export type Presence = "online" | "away" | "offline";
+export type Uuid = string;
+export type UserId = Uuid;
+export type DeviceId = Uuid;
+export type SessionId = Uuid;
+export type ConversationId = Uuid | string;
+export type MessageId = Uuid | string;
+export type OperationId = Uuid;
+export type AttachmentId = Uuid | string;
+export type LiveObjectId = Uuid | string;
+export type DeviceStatus = "active" | "inactive" | "revoked";
+export type SessionStatus = "active" | "expired" | "revoked";
 
 export type User = {
-  id: string;
+  id: UserId | string;
   name: string;
   initials: string;
   color: string;
   presence: Presence;
+  createdAt?: string;
 };
 
+export type Device = {
+  id: DeviceId;
+  userId: UserId;
+  label: string;
+  status: DeviceStatus;
+  enrolledAt: string;
+  notificationRegistrationState?: "unknown" | "registered" | "unregistered";
+};
+
+export type Session = {
+  id: SessionId;
+  userId: UserId;
+  deviceId: DeviceId;
+  status: SessionStatus;
+  issuedAt: string;
+  expiresAt?: string;
+  revokedAt?: string;
+};
+
+export type RuntimeConnection = {
+  connectionId: string;
+  sessionId: SessionId;
+  connectedAt: string;
+};
+
+export interface SecureCredentialStore {
+  getSecret(key: string): Promise<string | undefined>;
+  setSecret(key: string, value: string): Promise<void>;
+  deleteSecret(key: string): Promise<void>;
+}
+
 export type Conversation = {
-  id: string;
+  id: ConversationId;
   title: string;
   subtitle: string;
   avatarColor: string;
@@ -20,13 +63,13 @@ export type Conversation = {
   pinned: boolean;
   lastMessage: string;
   lastActivity: string;
-  participants: string[];
+  participants: Array<UserId | string>;
 };
 
 export type LiveObjectType = "event" | "live-location" | "expense" | "checklist";
 
 export type LiveObject = {
-  id: string;
+  id: LiveObjectId;
   type: LiveObjectType;
   title: string;
   summary: string;
@@ -40,8 +83,8 @@ export type DeliveryState = "pending" | "sent" | "delivered" | "read" | "failed"
 export type SyncState = "local" | "queued" | "sending" | "acknowledged" | "failed";
 
 export type MessageReference = {
-  messageId: string;
-  senderId: string;
+  messageId: MessageId;
+  senderId: UserId | string;
   label: string;
   excerpt: string;
   attachmentType?: Attachment["type"];
@@ -55,7 +98,7 @@ export type Reaction = {
 };
 
 export type Attachment = {
-  id: string;
+  id: AttachmentId;
   type: "image" | "video" | "file";
   name: string;
   meta: string;
@@ -64,15 +107,17 @@ export type Attachment = {
 };
 
 export type VoiceAttachment = {
-  id: string;
+  id: AttachmentId;
   durationSeconds: number;
   waveform: number[];
 };
 
 export type Message = {
-  id: string;
-  conversationId: string;
-  senderId: string;
+  id: MessageId;
+  conversationId: ConversationId;
+  senderId: UserId | string;
+  authorUserId?: UserId | string;
+  originDeviceId?: DeviceId;
   kind: MessageKind;
   text?: string;
   createdAt: string;
