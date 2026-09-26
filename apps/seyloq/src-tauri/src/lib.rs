@@ -222,20 +222,31 @@ mod local_store {
     }
 
     pub fn acknowledge_message(
-        connection: &Connection,
+        connection: &mut Connection,
         message_id: &str,
         operation_id: &str,
+        server_sequence: i64,
         acknowledged_at: &str,
     ) -> rusqlite::Result<()> {
-        connection.execute(
-            "UPDATE messages SET sync_state = 'acknowledged', delivery_state = 'sent', server_sequence = 1, server_acknowledged_at = ?1 WHERE id = ?2",
-            params![acknowledged_at, message_id],
+        let transaction = connection.transaction()?;
+
+        let message_rows = transaction.execute(
+            "UPDATE messages SET sync_state = 'acknowledged', delivery_state = 'sent', server_sequence = ?1, server_acknowledged_at = ?2 WHERE id = ?3",
+            params![server_sequence, acknowledged_at, message_id],
         )?;
-        connection.execute(
+        if message_rows != 1 {
+            return Err(rusqlite::Error::QueryReturnedNoRows);
+        }
+
+        let outbox_rows = transaction.execute(
             "UPDATE outbox_operations SET status = 'succeeded', updated_at = ?1 WHERE id = ?2",
             params![acknowledged_at, operation_id],
         )?;
-        Ok(())
+        if outbox_rows != 1 {
+            return Err(rusqlite::Error::QueryReturnedNoRows);
+        }
+
+        transaction.commit()
     }
 }
 
@@ -323,9 +334,10 @@ mod tests {
         .unwrap();
 
         local_store::acknowledge_message(
-            &connection,
+            &mut connection,
             "msg_test_002",
             "op_test_002",
+            42,
             "2026-09-26T09:49:03+05:00",
         )
         .unwrap();
@@ -344,9 +356,102 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
+        let delivery_state: String = connection
+            .query_row(
+                "SELECT delivery_state FROM messages WHERE id = 'msg_test_002'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let server_sequence: i64 = connection
+            .query_row(
+                "SELECT server_sequence FROM messages WHERE id = 'msg_test_002'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let outbox_status: String = connection
+            .query_row(
+                "SELECT status FROM outbox_operations WHERE id = 'op_test_002'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
 
         assert_eq!(message_count, 1);
         assert_eq!(state, "acknowledged");
+        assert_eq!(delivery_state, "sent");
+        assert_eq!(server_sequence, 42);
+        assert_eq!(outbox_status, "succeeded");
         assert_eq!(local_store::pending_outbox_count(&connection).unwrap(), 0);
+    }
+
+    #[test]
+    fn failed_acknowledgement_rolls_back_message_update() {
+        let mut connection = local_store::open_memory().unwrap();
+        local_store::migrate(&mut connection).unwrap();
+        local_store::seed_conversation(
+            &connection,
+            "hunza-trip",
+            "Hunza Trip",
+            "2026-09-26T09:00:00+05:00",
+        )
+        .unwrap();
+        local_store::send_message_transaction(
+            &mut connection,
+            local_store::SendMessageInput {
+                message_id: "msg_test_003",
+                outbox_id: "op_test_003",
+                conversation_id: "hunza-trip",
+                sender_id: "me",
+                text: "Rollback me",
+                created_at: "2026-09-26T09:50:00+05:00",
+                idempotency_key: "msg_test_003",
+            },
+        )
+        .unwrap();
+
+        let result = local_store::acknowledge_message(
+            &mut connection,
+            "msg_test_003",
+            "missing_operation",
+            99,
+            "2026-09-26T09:50:03+05:00",
+        );
+
+        let sync_state: String = connection
+            .query_row(
+                "SELECT sync_state FROM messages WHERE id = 'msg_test_003'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let delivery_state: String = connection
+            .query_row(
+                "SELECT delivery_state FROM messages WHERE id = 'msg_test_003'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let server_sequence: Option<i64> = connection
+            .query_row(
+                "SELECT server_sequence FROM messages WHERE id = 'msg_test_003'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let outbox_status: String = connection
+            .query_row(
+                "SELECT status FROM outbox_operations WHERE id = 'op_test_003'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert!(result.is_err());
+        assert_eq!(sync_state, "queued");
+        assert_eq!(delivery_state, "pending");
+        assert_eq!(server_sequence, None);
+        assert_eq!(outbox_status, "queued");
     }
 }

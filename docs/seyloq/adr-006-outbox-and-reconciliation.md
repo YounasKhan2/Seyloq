@@ -63,3 +63,5 @@ Retryable failures keep the message and operation durable, increment attempts, a
 ## Reconciliation
 
 Acknowledgement updates the existing local message with server metadata such as accepted timestamp and server sequence. It must not insert a duplicate. This is the core SEY-003 acceptance property and prepares SEY-004 to add real backend acknowledgements.
+
+Applying a successful server acknowledgement to the local message and marking its corresponding outbox operation succeeded is one local database transaction. Missing message or outbox rows fail reconciliation rather than silently committing a partial state.
