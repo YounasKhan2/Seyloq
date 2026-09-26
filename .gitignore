@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Tauri / Rust generated output
+apps/seyloq/src-tauri/target/
+apps/seyloq/src-tauri/gen/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
