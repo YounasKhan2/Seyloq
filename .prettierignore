@@ -1,0 +1,4 @@
+node_modules
+dist
+src
+apps/seyloq/src-tauri/target

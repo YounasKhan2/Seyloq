@@ -1,0 +1,45 @@
+{
+  "name": "seyloq",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --check SKILL.md index.html package.json tsconfig.json tsconfig.node.json vite.config.ts eslint.config.js \"apps/seyloq/src/**/*.{ts,tsx,css}\" \"apps/seyloq/test/**/*.{ts,tsx}\" \"docs/seyloq/**/*.md\" \"packages/**/*.md\" \"services/**/*.md\" \"infra/**/*.md\"",
+    "test": "vitest run",
+    "test:run": "vitest run",
+    "rust:fmt": "cargo fmt --manifest-path apps/seyloq/src-tauri/Cargo.toml --check",
+    "rust:check": "cargo check --manifest-path apps/seyloq/src-tauri/Cargo.toml",
+    "rust:test": "cargo test --manifest-path apps/seyloq/src-tauri/Cargo.toml"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.1",
+    "lucide-react": "^1.16.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@tauri-apps/cli": "^2.11.5",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^10.11.0",
+    "globals": "^17.12.0",
+    "jsdom": "^30.1.1",
+    "prettier": "^3.9.9",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.70.1",
+    "vite": "^6.2.0",
+    "vitest": "^5.0.1"
+  }
+}
