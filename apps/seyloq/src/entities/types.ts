@@ -37,6 +37,7 @@ export type LiveObject = {
 
 export type MessageKind = "text" | "image" | "video" | "file" | "voice" | "live-object" | "system";
 export type DeliveryState = "pending" | "sent" | "delivered" | "read" | "failed";
+export type SyncState = "local" | "queued" | "sending" | "acknowledged" | "failed";
 
 export type MessageReference = {
   messageId: string;
@@ -80,6 +81,9 @@ export type Message = {
   replyTo?: MessageReference;
   reactions?: Reaction[];
   deliveryState: DeliveryState;
+  syncState?: SyncState;
+  serverSequence?: number;
+  serverAcknowledgedAt?: string;
   attachments?: Attachment[];
   voice?: VoiceAttachment;
   liveObject?: LiveObject;

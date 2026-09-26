@@ -119,6 +119,8 @@ export function ConversationPane({
   onToggleSelection,
   onClearSelection,
   onToggleReaction,
+  draftText,
+  onDraftChange,
 }: {
   conversationTitle: string;
   messages: Message[];
@@ -133,6 +135,8 @@ export function ConversationPane({
   onToggleSelection: (messageId: string) => void;
   onClearSelection: () => void;
   onToggleReaction: (messageId: string, emoji: string) => void;
+  draftText: string;
+  onDraftChange: (text: string) => void;
 }) {
   const userById = useMemo(() => new Map(users.map((user) => [user.id, user])), [users]);
   const listRef = useRef<HTMLDivElement>(null);
@@ -228,7 +232,7 @@ export function ConversationPane({
           New messages
         </button>
       ) : null}
-      <MessageComposer mode={composerMode} onModeChange={onComposerModeChange} onSubmit={onSend} onEdit={onEdit} />
+      <MessageComposer mode={composerMode} draftText={draftText} onDraftChange={onDraftChange} onModeChange={onComposerModeChange} onSubmit={onSend} onEdit={onEdit} />
     </>
   );
 }
@@ -441,6 +445,8 @@ function MessageMeta({ message }: { message: Message }) {
     <footer className="message-meta">
       <time>{formatMessageTime(message.createdAt)}</time>
       {message.edited ? <span>edited</span> : null}
+      {message.syncState === "queued" ? <span>queued</span> : null}
+      {message.syncState === "sending" ? <span>sending</span> : null}
       {message.mine ? <DeliveryIndicator state={message.deliveryState} /> : null}
     </footer>
   );
@@ -526,11 +532,15 @@ function TypingIndicator({ name }: { name: string }) {
 
 function MessageComposer({
   mode,
+  draftText,
+  onDraftChange,
   onModeChange,
   onSubmit,
   onEdit,
 }: {
   mode: ComposerMode;
+  draftText: string;
+  onDraftChange: (text: string) => void;
   onModeChange: (mode: ComposerMode) => void;
   onSubmit: (payload: ComposerPayload) => void;
   onEdit: (messageId: string, text: string) => void;
@@ -539,8 +549,15 @@ function MessageComposer({
   const [attachmentOpen, setAttachmentOpen] = useState(false);
 
   useEffect(() => {
-    setText(mode.kind === "edit" ? mode.text : "");
-  }, [mode]);
+    setText(mode.kind === "edit" ? mode.text : draftText);
+  }, [draftText, mode]);
+
+  useEffect(() => {
+    if (mode.kind === "default" || mode.kind === "reply") {
+      const timeout = window.setTimeout(() => onDraftChange(text), 250);
+      return () => window.clearTimeout(timeout);
+    }
+  }, [mode.kind, onDraftChange, text]);
 
   const submit = () => {
     const next = text.trim();
@@ -553,6 +570,7 @@ function MessageComposer({
     }
 
     setText("");
+    onDraftChange("");
     onModeChange({ kind: "default" });
   };
 

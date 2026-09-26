@@ -1,58 +1,46 @@
 import { useEffect, useMemo, useState } from "react";
-import { conversations, messages } from "./data/seed";
-import type { Message, PrimarySection, Reaction, ThemeMode } from "./entities/types";
+import type { PrimarySection, ThemeMode } from "./entities/types";
 import { AppShell } from "./components/shell";
-import type { ComposerMode, ComposerPayload } from "./components/messaging";
+import type { ComposerMode } from "./components/messaging";
+import {
+  BrowserStorageLocalRepository,
+  FakeMessageTransport,
+  createLocalFirstApp,
+  useLocalFirstSnapshot,
+} from "./app/local-first";
+
+const localFirstApp = createLocalFirstApp({
+  repository: new BrowserStorageLocalRepository(),
+  transport: new FakeMessageTransport(),
+});
 
 export function App() {
   const [section, setSection] = useState<PrimarySection>("chats");
   const [activeConversationId, setActiveConversationId] = useState("hunza-trip");
-  const [localMessages, setLocalMessages] = useState<Message[]>(messages);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [composerMode, setComposerMode] = useState<ComposerMode>({ kind: "default" });
   const [contextOpen, setContextOpen] = useState(() =>
     typeof window === "undefined" ? true : window.innerWidth > 1180,
   );
   const [theme, setTheme] = useState<ThemeMode>("light");
+  const snapshot = useLocalFirstSnapshot(localFirstApp);
 
   const activeConversation = useMemo(
-    () => conversations.find((conversation) => conversation.id === activeConversationId) ?? conversations[0],
-    [activeConversationId],
+    () => snapshot.conversations.find((conversation) => conversation.id === activeConversationId) ?? snapshot.conversations[0],
+    [activeConversationId, snapshot.conversations],
   );
 
   const activeMessages = useMemo(
-    () => localMessages.filter((message) => message.conversationId === activeConversation.id),
-    [activeConversation.id, localMessages],
+    () => snapshot.messages.filter((message) => message.conversationId === activeConversation.id),
+    [activeConversation.id, snapshot.messages],
   );
 
-  const sendMessage = (payload: ComposerPayload) => {
-    const now = new Date("2026-09-26T09:48:00+05:00");
-    const replyTo = payload.mode.kind === "reply" ? payload.mode.message : undefined;
-
-    setLocalMessages((current) => [
-      ...current,
-      {
-        id: `local-${current.length + 1}`,
-        conversationId: activeConversation.id,
-        senderId: "me",
-        kind: "text",
-        text: payload.text,
-        replyTo,
-        createdAt: now.toISOString(),
-        mine: true,
-        deliveryState: "sent",
-      },
-    ]);
-  };
-
   const editMessage = (messageId: string, text: string) => {
-    setLocalMessages((current) =>
-      current.map((message) => (message.id === messageId ? { ...message, text, edited: true } : message)),
-    );
+    localFirstApp.editMessage(messageId, text);
   };
 
   const deleteMessage = (messageId: string) => {
-    setLocalMessages((current) => current.filter((message) => message.id !== messageId));
+    localFirstApp.deleteMessage(messageId);
     setSelectedIds((current) => {
       const next = new Set(current);
       next.delete(messageId);
@@ -61,9 +49,7 @@ export function App() {
   };
 
   const retryMessage = (messageId: string) => {
-    setLocalMessages((current) =>
-      current.map((message) => (message.id === messageId ? { ...message, deliveryState: "sent" } : message)),
-    );
+    void localFirstApp.retryMessage(messageId);
   };
 
   const toggleSelection = (messageId: string) => {
@@ -79,24 +65,7 @@ export function App() {
   };
 
   const toggleReaction = (messageId: string, emoji: string) => {
-    setLocalMessages((current) =>
-      current.map((message) => {
-        if (message.id !== messageId) return message;
-
-        const reactions = message.reactions ?? [];
-        const existing = reactions.find((reaction) => reaction.emoji === emoji);
-        const nextReaction: Reaction = existing
-          ? { ...existing, count: existing.reactedByMe ? existing.count - 1 : existing.count + 1, reactedByMe: !existing.reactedByMe }
-          : { emoji, label: emoji, count: 1, reactedByMe: true };
-
-        return {
-          ...message,
-          reactions: existing
-            ? reactions.map((reaction) => (reaction.emoji === emoji ? nextReaction : reaction)).filter((reaction) => reaction.count > 0)
-            : [...reactions, nextReaction],
-        };
-      }),
-    );
+    localFirstApp.toggleReaction(messageId, emoji);
   };
 
   useEffect(() => {
@@ -119,20 +88,22 @@ export function App() {
     <AppShell
       section={section}
       onSectionChange={setSection}
-      conversations={conversations}
+      conversations={snapshot.conversations}
       activeConversation={activeConversation}
       onConversationChange={setActiveConversationId}
       messages={activeMessages}
       selectedIds={selectedIds}
       composerMode={composerMode}
       onComposerModeChange={setComposerMode}
-      onSend={sendMessage}
+      onSend={(payload) => void localFirstApp.sendMessage(activeConversation.id, payload)}
       onEdit={editMessage}
       onDelete={deleteMessage}
       onRetry={retryMessage}
       onToggleSelection={toggleSelection}
       onClearSelection={() => setSelectedIds(new Set())}
       onToggleReaction={toggleReaction}
+      draftText={snapshot.drafts.find((draft) => draft.conversationId === activeConversation.id)?.text ?? ""}
+      onDraftChange={(text) => localFirstApp.saveDraft(activeConversation.id, text)}
       contextOpen={contextOpen}
       onContextToggle={() => setContextOpen((open) => !open)}
       theme={theme}
