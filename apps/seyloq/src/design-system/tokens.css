@@ -5,6 +5,7 @@
   --surface-raised: #fbfbf9;
   --surface-overlay: rgba(255, 255, 255, 0.94);
   --surface-selected: #e8f0ff;
+  --surface-hover: #eef3f6;
   --surface-message-in: #ffffff;
   --surface-message-out: #dcecff;
   --text-primary: #17202a;
@@ -55,6 +56,7 @@
   --surface-raised: #1b2228;
   --surface-overlay: rgba(21, 26, 31, 0.94);
   --surface-selected: #183154;
+  --surface-hover: #202a33;
   --surface-message-in: #20272e;
   --surface-message-out: #15375f;
   --text-primary: #f2f5f7;
