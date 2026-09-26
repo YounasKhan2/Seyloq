@@ -10,6 +10,9 @@ export default defineConfig({
   server: {
     port: 1420,
     strictPort: true,
+    watch: {
+      ignored: ["**/apps/seyloq/src-tauri/target/**"],
+    },
   },
   test: {
     environment: "jsdom",

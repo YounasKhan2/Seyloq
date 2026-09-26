@@ -2,17 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import type { PrimarySection, ThemeMode } from "./entities/types";
 import { AppShell } from "./components/shell";
 import type { ComposerMode } from "./components/messaging";
-import {
-  BrowserStorageLocalRepository,
-  FakeMessageTransport,
-  createLocalFirstApp,
-  useLocalFirstSnapshot,
-} from "./app/local-first";
+import { createSeyloqApplication } from "./app/platform";
+import { useLocalFirstSnapshot } from "./app/local-first";
 
-const localFirstApp = createLocalFirstApp({
-  repository: new BrowserStorageLocalRepository(),
-  transport: new FakeMessageTransport(),
-});
+const localFirstApp = createSeyloqApplication();
 
 export function App() {
   const [section, setSection] = useState<PrimarySection>("chats");
