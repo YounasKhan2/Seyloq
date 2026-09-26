@@ -2,7 +2,6 @@ import {
   Bell,
   Check,
   MessageCircle,
-  Mic,
   Moon,
   MoreHorizontal,
   PanelRightClose,
@@ -10,15 +9,15 @@ import {
   Phone,
   Plus,
   Search,
-  Send,
   Sun,
   Users,
   Video,
 } from "lucide-react";
-import type { Conversation, Message, PrimarySection, ThemeMode, User } from "../entities/types";
+import type { ComposerMode, ComposerPayload } from "./messaging";
+import { ConversationPane } from "./messaging";
 import { contextMedia, users } from "../data/seed";
+import type { Conversation, Message, PrimarySection, ThemeMode, User } from "../entities/types";
 import { Avatar, Badge, Divider, IconButton, SearchField } from "./primitives";
-import { LiveObjectCard } from "./live-objects";
 
 const userById = new Map(users.map((user) => [user.id, user]));
 
@@ -29,6 +28,16 @@ export function AppShell({
   activeConversation,
   onConversationChange,
   messages,
+  selectedIds,
+  composerMode,
+  onComposerModeChange,
+  onSend,
+  onEdit,
+  onDelete,
+  onRetry,
+  onToggleSelection,
+  onClearSelection,
+  onToggleReaction,
   contextOpen,
   onContextToggle,
   theme,
@@ -40,6 +49,16 @@ export function AppShell({
   activeConversation: Conversation;
   onConversationChange: (id: string) => void;
   messages: Message[];
+  selectedIds: Set<string>;
+  composerMode: ComposerMode;
+  onComposerModeChange: (mode: ComposerMode) => void;
+  onSend: (payload: ComposerPayload) => void;
+  onEdit: (messageId: string, text: string) => void;
+  onDelete: (messageId: string) => void;
+  onRetry: (messageId: string) => void;
+  onToggleSelection: (messageId: string) => void;
+  onClearSelection: () => void;
+  onToggleReaction: (messageId: string, emoji: string) => void;
   contextOpen: boolean;
   onContextToggle: () => void;
   theme: ThemeMode;
@@ -58,12 +77,24 @@ export function AppShell({
         activeConversationId={activeConversation.id}
         onConversationChange={onConversationChange}
       />
-      <ConversationPane
-        conversation={activeConversation}
-        messages={messages}
-        contextOpen={contextOpen}
-        onContextToggle={onContextToggle}
-      />
+      <main className="conversation-pane" aria-label={`${activeConversation.title} conversation`}>
+        <ConversationHeader conversation={activeConversation} contextOpen={contextOpen} onContextToggle={onContextToggle} />
+        <ConversationPane
+          conversationTitle={activeConversation.title}
+          messages={messages}
+          users={users}
+          selectedIds={selectedIds}
+          composerMode={composerMode}
+          onComposerModeChange={onComposerModeChange}
+          onSend={onSend}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onRetry={onRetry}
+          onToggleSelection={onToggleSelection}
+          onClearSelection={onClearSelection}
+          onToggleReaction={onToggleReaction}
+        />
+      </main>
       {contextOpen ? <ContextPanel conversation={activeConversation} onClose={onContextToggle} /> : null}
       <PrimaryNavigation section={section} onSectionChange={onSectionChange} />
     </div>
@@ -157,26 +188,6 @@ function ChatList({
   );
 }
 
-function ConversationPane({
-  conversation,
-  messages,
-  contextOpen,
-  onContextToggle,
-}: {
-  conversation: Conversation;
-  messages: Message[];
-  contextOpen: boolean;
-  onContextToggle: () => void;
-}) {
-  return (
-    <main className="conversation-pane" aria-label={`${conversation.title} conversation`}>
-      <ConversationHeader conversation={conversation} contextOpen={contextOpen} onContextToggle={onContextToggle} />
-      <MessageList messages={messages} />
-      <MessageComposer />
-    </main>
-  );
-}
-
 function ConversationHeader({
   conversation,
   contextOpen,
@@ -208,57 +219,6 @@ function ConversationHeader({
         </IconButton>
       </div>
     </header>
-  );
-}
-
-function MessageList({ messages }: { messages: Message[] }) {
-  return (
-    <section className="message-list" aria-label="Messages">
-      <div className="date-chip">Today</div>
-      {messages.map((message) => (
-        <MessageBubble key={message.id} message={message} sender={userById.get(message.senderId)} />
-      ))}
-    </section>
-  );
-}
-
-function MessageBubble({ message, sender }: { message: Message; sender?: User }) {
-  return (
-    <article className={message.mine ? "message-row mine" : "message-row"}>
-      {!message.mine && sender ? <Avatar name={sender.name} initials={sender.initials} color={sender.color} size="sm" /> : null}
-      <div className="message-stack">
-        {!message.mine && sender ? <span className="sender-name">{sender.name}</span> : null}
-        {message.attachment ? (
-          <div className="image-attachment" style={{ background: message.attachment.gradient }}>
-            <span>{message.attachment.label}</span>
-          </div>
-        ) : null}
-        {message.liveObject ? <LiveObjectCard object={message.liveObject} /> : null}
-        {message.body ? <div className="message-bubble">{message.body}</div> : null}
-        <footer className="message-meta">
-          <time>{message.timestamp}</time>
-          {message.delivery ? <span>{message.delivery}</span> : null}
-          {message.reactions?.map((reaction) => <span key={reaction}>{reaction}</span>)}
-        </footer>
-      </div>
-    </article>
-  );
-}
-
-function MessageComposer() {
-  return (
-    <form className="composer" aria-label="Message composer" onSubmit={(event) => event.preventDefault()}>
-      <IconButton label="Add attachment">
-        <Plus size={18} />
-      </IconButton>
-      <textarea aria-label="Message" placeholder="Message..." rows={1} />
-      <IconButton label="Record voice note">
-        <Mic size={18} />
-      </IconButton>
-      <IconButton label="Send message" className="send-button">
-        <Send size={18} />
-      </IconButton>
-    </form>
   );
 }
 
@@ -301,14 +261,24 @@ function ContextPanel({ conversation, onClose }: { conversation: Conversation; o
       </section>
       <section className="context-section compact-list">
         <h3>Structured items</h3>
-        <button><Check size={14} /> Altit Fort checklist</button>
-        <button><Users size={14} /> Fuel + snacks split</button>
-        <button><Bell size={14} /> Golden-hour reminder</button>
+        <button>
+          <Check size={14} /> Altit Fort checklist
+        </button>
+        <button>
+          <Users size={14} /> Fuel + snacks split
+        </button>
+        <button>
+          <Bell size={14} /> Golden-hour reminder
+        </button>
       </section>
       <section className="context-section compact-list">
         <h3>Settings</h3>
-        <button><Bell size={14} /> Notifications</button>
-        <button><MoreHorizontal size={14} /> Privacy and safety</button>
+        <button>
+          <Bell size={14} /> Notifications
+        </button>
+        <button>
+          <MoreHorizontal size={14} /> Privacy and safety
+        </button>
       </section>
     </aside>
   );
