@@ -2,6 +2,7 @@ import {
   Check,
   CheckCheck,
   Copy,
+  CalendarDays,
   Download,
   Edit3,
   FileText,
@@ -119,6 +120,7 @@ export function ConversationPane({
   onToggleSelection,
   onClearSelection,
   onToggleReaction,
+  onTurnIntoEvent,
   draftText,
   onDraftChange,
 }: {
@@ -135,6 +137,7 @@ export function ConversationPane({
   onToggleSelection: (messageId: string) => void;
   onClearSelection: () => void;
   onToggleReaction: (messageId: string, emoji: string) => void;
+  onTurnIntoEvent: (message: Message) => void;
   draftText: string;
   onDraftChange: (text: string) => void;
 }) {
@@ -142,6 +145,7 @@ export function ConversationPane({
   const listRef = useRef<HTMLDivElement>(null);
   const initializedScrollRef = useRef(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [turnIntoCandidate, setTurnIntoCandidate] = useState<Message | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [showNewMessages, setShowNewMessages] = useState(false);
   const renderables = useMemo(() => groupMessages(messages), [messages]);
@@ -222,11 +226,22 @@ export function ConversationPane({
             onRetry={onRetry}
             onToggleSelection={onToggleSelection}
             onToggleReaction={onToggleReaction}
+            onTurnInto={() => setTurnIntoCandidate(item.message)}
             onJumpToMessage={jumpToMessage}
           />
         ))}
         <TypingIndicator name="Sana" />
       </section>
+      {turnIntoCandidate ? (
+        <TurnIntoDialog
+          message={turnIntoCandidate}
+          onCancel={() => setTurnIntoCandidate(null)}
+          onConfirm={() => {
+            onTurnIntoEvent(turnIntoCandidate);
+            setTurnIntoCandidate(null);
+          }}
+        />
+      ) : null}
       {showNewMessages ? (
         <button className="new-messages-button" onClick={() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight })}>
           New messages
@@ -270,6 +285,7 @@ function MessageItem({
   onRetry,
   onToggleSelection,
   onToggleReaction,
+  onTurnInto,
   onJumpToMessage,
 }: {
   item: RenderableMessage;
@@ -284,9 +300,18 @@ function MessageItem({
   onRetry: (messageId: string) => void;
   onToggleSelection: (messageId: string) => void;
   onToggleReaction: (messageId: string, emoji: string) => void;
+  onTurnInto: () => void;
   onJumpToMessage: (messageId: string) => void;
 }) {
   const { message } = item;
+  const longPressRef = useRef<number | null>(null);
+
+  const clearLongPress = () => {
+    if (longPressRef.current) {
+      window.clearTimeout(longPressRef.current);
+      longPressRef.current = null;
+    }
+  };
 
   if (message.kind === "system") {
     return (
@@ -311,6 +336,12 @@ function MessageItem({
         event.preventDefault();
         onMenuOpen();
       }}
+      onPointerDown={(event) => {
+        if (event.pointerType !== "touch") return;
+        longPressRef.current = window.setTimeout(onMenuOpen, 520);
+      }}
+      onPointerUp={clearLongPress}
+      onPointerCancel={clearLongPress}
     >
       <div className="message-avatar-slot">
         {item.showAvatar && sender ? <Avatar name={sender.name} initials={sender.initials} color={sender.color} size="sm" /> : null}
@@ -336,6 +367,7 @@ function MessageItem({
             onEdit={() => onEdit(message)}
             onDelete={() => onDelete(message.id)}
             onSelect={() => onToggleSelection(message.id)}
+            onTurnInto={onTurnInto}
           />
         ) : null}
       </div>
@@ -354,6 +386,9 @@ function MessageContent({ message, onRetry }: { message: Message; onRetry: (mess
         <button className="retry-button" type="button" onClick={() => onRetry(message.id)}>
           <RefreshCcw size={13} /> Retry
         </button>
+      ) : null}
+      {message.syncState === "queued" && message.deliveryState === "pending" ? (
+        <span className="pending-note">Waiting for connection</span>
       ) : null}
     </>
   );
@@ -475,6 +510,7 @@ function MessageMenu({
   onEdit,
   onDelete,
   onSelect,
+  onTurnInto,
 }: {
   own: boolean;
   onReply: () => void;
@@ -482,6 +518,7 @@ function MessageMenu({
   onEdit: () => void;
   onDelete: () => void;
   onSelect: () => void;
+  onTurnInto: () => void;
 }) {
   return (
     <div className="message-menu" role="menu">
@@ -511,10 +548,65 @@ function MessageMenu({
       <button type="button" role="menuitem" onClick={onDelete}>
         <Trash2 size={14} /> Delete
       </button>
-      <div className="turn-into" aria-label="Turn into">
-        <span>Turn into...</span>
-        <small>Event · Poll · Reminder · Expense · Decision</small>
+      <button type="button" role="menuitem" onClick={onTurnInto}>
+        <CalendarDays size={14} /> Turn Into
+      </button>
+      <div className="turn-into" aria-label="Turn into options">
+        <span>Event · Poll · Checklist · Expense · Decision</span>
       </div>
+    </div>
+  );
+}
+
+function TurnIntoDialog({
+  message,
+  onCancel,
+  onConfirm,
+}: {
+  message: Message;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="dialog-backdrop" role="presentation" onMouseDown={onCancel}>
+      <section
+        className="turn-into-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="turn-into-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header>
+          <span className="live-object-icon">
+            <CalendarDays size={15} />
+          </span>
+          <div>
+            <h2 id="turn-into-title">Turn Into Event</h2>
+            <p>Review the candidate before it becomes a shared item.</p>
+          </div>
+        </header>
+        <blockquote>{message.text}</blockquote>
+        <label>
+          Title
+          <input value="Hunza weekend trip" readOnly />
+        </label>
+        <label>
+          When
+          <input value="Friday morning - Monday" readOnly />
+        </label>
+        <label>
+          Source
+          <input value="Keep original message in chat" readOnly />
+        </label>
+        <footer>
+          <button type="button" onClick={onCancel}>
+            Cancel
+          </button>
+          <button type="button" className="confirm-button" onClick={onConfirm}>
+            Create Event
+          </button>
+        </footer>
+      </section>
     </div>
   );
 }

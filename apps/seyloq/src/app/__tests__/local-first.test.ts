@@ -32,7 +32,8 @@ describe("local-first application engine", () => {
     const before = repository.loadBefore("hunza-trip", latest[0].id, 2);
 
     expect(latest).toHaveLength(3);
-    expect(latest.at(-1)?.text).toContain("visible when useful");
+    expect(latest.at(-1)?.text).toContain("Booking the jeep now");
+    expect(latest.at(-1)?.syncState).toBe("queued");
     expect(before).toHaveLength(2);
     expect(before[0].conversationId).toBe("hunza-trip");
   });

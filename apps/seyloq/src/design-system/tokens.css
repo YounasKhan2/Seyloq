@@ -44,6 +44,7 @@
   --pane-context: 320px;
   --z-header: 10;
   --z-overlay: 40;
+  --z-modal: 60;
   --motion-fast: 120ms;
   --motion-normal: 180ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);

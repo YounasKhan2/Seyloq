@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { PrimarySection, ThemeMode } from "./entities/types";
+import type { Message, PrimarySection, ThemeMode } from "./entities/types";
 import { AppShell } from "./components/shell";
 import type { ComposerMode } from "./components/messaging";
 import { createSeyloqApplication } from "./app/platform";
@@ -16,6 +16,7 @@ export function App() {
     typeof window === "undefined" ? true : window.innerWidth > 1180,
   );
   const [theme, setTheme] = useState<ThemeMode>("light");
+  const [prototypeMessages, setPrototypeMessages] = useState<Message[]>([]);
   const snapshot = useLocalFirstSnapshot(localFirstApp);
 
   const activeConversation = useMemo(
@@ -24,8 +25,11 @@ export function App() {
   );
 
   const activeMessages = useMemo(
-    () => snapshot.messages.filter((message) => message.conversationId === activeConversation.id),
-    [activeConversation.id, snapshot.messages],
+    () =>
+      [...snapshot.messages, ...prototypeMessages]
+        .filter((message) => message.conversationId === activeConversation.id)
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+    [activeConversation.id, prototypeMessages, snapshot.messages],
   );
 
   const editMessage = (messageId: string, text: string) => {
@@ -61,6 +65,36 @@ export function App() {
     void localFirstApp.toggleReaction(messageId, emoji);
   };
 
+  const turnMessageIntoEvent = (source: Message) => {
+    const exists = prototypeMessages.some((message) => message.liveObject?.sourceMessageId === source.id);
+    if (exists) return;
+
+    setPrototypeMessages((messages) => [
+      ...messages,
+      {
+        id: `prototype-event-${source.id}`,
+        conversationId: source.conversationId,
+        senderId: "me",
+        kind: "live-object",
+        createdAt: new Date("2026-09-26T09:47:00+05:00").toISOString(),
+        mine: true,
+        deliveryState: "pending",
+        syncState: "queued",
+        liveObject: {
+          id: `event-${source.id}`,
+          type: "event",
+          title: "Hunza weekend trip",
+          summary: "Friday morning - Monday · group trip",
+          meta: "5 invited · awaiting confirmation",
+          status: "Candidate",
+          items: ["Leave Friday morning", "Return Monday", "Source stays in chat"],
+          syncState: "locally-modified",
+          sourceMessageId: source.id,
+        },
+      },
+    ]);
+  };
+
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
@@ -85,6 +119,8 @@ export function App() {
       activeConversation={activeConversation}
       onConversationChange={setActiveConversationId}
       messages={activeMessages}
+      connectivity={snapshot.connectivity}
+      lastError={snapshot.lastError}
       selectedIds={selectedIds}
       composerMode={composerMode}
       onComposerModeChange={setComposerMode}
@@ -95,8 +131,14 @@ export function App() {
       onToggleSelection={toggleSelection}
       onClearSelection={() => setSelectedIds(new Set())}
       onToggleReaction={toggleReaction}
+      onTurnIntoEvent={turnMessageIntoEvent}
       draftText={snapshot.drafts.find((draft) => draft.conversationId === activeConversation.id)?.text ?? ""}
       onDraftChange={(text) => localFirstApp.saveDraft(activeConversation.id, text)}
+      onSetOffline={() => localFirstApp.setConnectivity("offline")}
+      onReconnect={() => {
+        localFirstApp.setConnectivity("online");
+        void localFirstApp.processOutbox();
+      }}
       contextOpen={contextOpen}
       onContextToggle={() => setContextOpen((open) => !open)}
       theme={theme}

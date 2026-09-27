@@ -20,6 +20,7 @@ export const conversations: Conversation[] = [
     lastMessage: "Sana added the Altit Fort checklist",
     lastActivity: "9:42",
     participants: ["me", "amira", "bilal", "sana", "omar"],
+    pendingCount: 1,
   },
   {
     id: "family",
@@ -32,6 +33,7 @@ export const conversations: Conversation[] = [
     lastMessage: "Dinner at 8?",
     lastActivity: "8:17",
     participants: ["me", "amira", "sana"],
+    draftPreview: "Draft: ask about Sunday lunch",
   },
   {
     id: "design-circle",
@@ -56,6 +58,7 @@ export const conversations: Conversation[] = [
     lastMessage: "Voice note · 0:24",
     lastActivity: "Sun",
     participants: ["me", "omar"],
+    draftPreview: "Draft: sending location later",
   },
 ];
 
@@ -166,6 +169,16 @@ const baseMessages: Message[] = [
     deliveryState: "read",
   },
   {
+    id: "m-turn-source",
+    conversationId: "hunza-trip",
+    senderId: "amira",
+    kind: "text",
+    text: "Let's leave for Hunza Friday morning and come back Monday.",
+    createdAt: "2026-09-26T09:23:30+05:00",
+    deliveryState: "read",
+    reactions: [{ emoji: "👍", label: "thumbs up", count: 2 }],
+  },
+  {
     id: "unread-1",
     conversationId: "hunza-trip",
     senderId: "system",
@@ -243,7 +256,35 @@ const baseMessages: Message[] = [
       meta: "Updated by Sana",
       status: "In progress",
       items: ["Camera batteries", "Water bottles", "Light jackets", "Student cards"],
+      syncState: "fresh",
     },
+  },
+  {
+    id: "lo5",
+    conversationId: "hunza-trip",
+    senderId: "bilal",
+    kind: "live-object",
+    createdAt: "2026-09-26T09:43:00+05:00",
+    deliveryState: "read",
+    liveObject: {
+      id: "poll-drive",
+      type: "poll",
+      title: "Breakfast stop",
+      summary: "2 options · voting open",
+      meta: "Non-anonymous · results visible",
+      status: "Open",
+      items: ["Cafe de Hunza · 3 votes", "Roadside dhaba · 2 votes"],
+      syncState: "fresh",
+    },
+  },
+  {
+    id: "activity-jeep",
+    conversationId: "hunza-trip",
+    senderId: "system",
+    kind: "system",
+    text: "Omar changed Fuel + snacks split to PKR 14,800.",
+    createdAt: "2026-09-26T09:44:00+05:00",
+    deliveryState: "read",
   },
   {
     id: "m9",
@@ -255,10 +296,21 @@ const baseMessages: Message[] = [
     mine: true,
     deliveryState: "delivered",
   },
+  {
+    id: "m-offline",
+    conversationId: "hunza-trip",
+    senderId: "me",
+    kind: "text",
+    text: "Booking the jeep now.",
+    createdAt: "2026-09-26T09:46:00+05:00",
+    mine: true,
+    deliveryState: "pending",
+    syncState: "queued",
+  },
 ];
 
 export const messages: Message[] = [
-  ...Array.from({ length: 18 }, (_, index): Message => ({
+  ...Array.from({ length: 4 }, (_, index): Message => ({
     id: `history-${index + 1}`,
     conversationId: "hunza-trip",
     senderId: index % 3 === 0 ? "bilal" : index % 3 === 1 ? "sana" : "me",
