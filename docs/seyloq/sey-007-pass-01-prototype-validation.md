@@ -119,6 +119,64 @@ Expected review captures:
 - Mobile chats root: `docs/seyloq/screenshots/sey-007-pass-01-mobile-chats.png`
 - Mobile conversation: `docs/seyloq/screenshots/sey-007-pass-01-mobile-conversation.png`
 
+Correction review captures:
+
+- Desktop visual correction: `docs/seyloq/screenshots/sey-007-pass-01-desktop-v2.png`
+- Mobile Chats visual correction: `docs/seyloq/screenshots/sey-007-pass-01-mobile-chats-v2.png`
+- Mobile Conversation visual correction: `docs/seyloq/screenshots/sey-007-pass-01-mobile-conversation-v2.png`
+- Narrow validation: `docs/seyloq/screenshots/sey-007-pass-01-mobile-conversation-320-v2.png`
+- Additional responsive validation: `docs/seyloq/screenshots/sey-007-pass-01-mobile-conversation-360-v2.png`, `docs/seyloq/screenshots/sey-007-pass-01-mobile-conversation-430-v2.png`, `docs/seyloq/screenshots/sey-007-pass-01-tablet-v2.png`
+
+## Visual Correction
+
+Human Review passed the interaction and information architecture, but required visual and responsive corrections before final acceptance.
+
+Findings addressed:
+
+- Mobile conversation had meaningful horizontal overflow in message rows, Live Objects, metadata, and the New Messages indicator.
+- Desktop Context competed too strongly with the conversation.
+- Context labels felt administrative.
+- Live Objects had too much equal-weight chrome.
+- Mobile Chats root needed a clearer consumer messenger header and denser fixtures.
+- Offline metadata exposed too much technical state.
+- `Star` was present in message actions even though it is not part of the frozen SEY-006 action contract.
+
+Root causes:
+
+- Message rows used `max-content` grid sizing with a persistent actions column.
+- Message and Live Object widths mixed viewport units with padded scroll containers.
+- Pending metadata used max-content sizing.
+- Headless Chrome viewport capture behaved like a narrow crop of a wider CSS viewport, so narrow-safe caps were needed for reliable review evidence.
+
+Changes made:
+
+- Message rows now use shrinkable grid lanes and safe narrow-layout caps.
+- Mobile hover action buttons are hidden; long press and desktop context menu remain the validation paths.
+- Pending offline messages now show `Waiting for connection` without queued/checkmark protocol noise.
+- New Messages indicator is centered and constrained inside the viewport.
+- Live Object title/status hierarchy was tightened and badges can wrap.
+- Context panel width, labels, participants, teaser, and section rhythm were quieted.
+- Mobile Chats header now uses `Chats` plus avatar identity, and fixtures include enough realistic rows for density/scroll validation.
+- `Star` was removed from the Pass 01 validation path.
+
+Responsive widths tested:
+
+- Mobile: 320, 360, 390, 430.
+- Tablet: 820.
+- Desktop: 1440.
+
+Accessibility recheck:
+
+- Existing accessible names, focus rings, semantic menu/dialog roles, reduced-motion behavior, and non-color text states remain intact.
+- Compact mobile lanes preserve readable text and visible touch targets.
+
+Remaining limitations:
+
+- Turn Into Event remains prototype-local React state; production persistence is not validated.
+- Offline/reconnect is still simulated for UX validation.
+- Context grouping remains fixture-derived rather than native-store-derived.
+- Headless Chrome capture has viewport quirks; the code includes conservative narrow/tablet caps to keep visual evidence and actual narrow panes safe.
+
 ## Verification Evidence
 
 - `npm run typecheck`

@@ -36,8 +36,10 @@ export function LiveObjectHeader({
   return (
     <header className="live-object-header">
       <span className="live-object-icon">{icon}</span>
-      <strong>{title}</strong>
-      <Badge tone="accent">{status}</Badge>
+      <span className="live-object-title">
+        <strong>{title}</strong>
+        <Badge tone="accent">{status}</Badge>
+      </span>
     </header>
   );
 }

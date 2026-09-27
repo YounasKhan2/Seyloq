@@ -191,9 +191,9 @@ function ChatList({
   return (
     <aside className="chat-list" aria-label="Chats">
       <div className="pane-header compact">
+        <Avatar name="Youna" initials="Y" color="#216bff" size="sm" />
         <div>
-          <h1>Seyloq</h1>
-          <p>Youna · Chats</p>
+          <h1>Chats</h1>
         </div>
         <IconButton label="New chat">
           <Plus size={17} />
@@ -294,7 +294,7 @@ function ConnectionBanner({
 
   return (
     <div className={offline ? "connection-banner offline" : "connection-banner"} role="status">
-      <span>{offline ? "Waiting for connection. New messages will send when you are back online." : "Online · messages reconcile automatically"}</span>
+      <span>{offline ? "Waiting for connection. New messages will send when you are back online." : "Online"}</span>
       {lastError ? <small>{lastError}</small> : null}
       <button type="button" onClick={offline ? onReconnect : onSetOffline}>
         {offline ? "Reconnect" : "Simulate offline"}

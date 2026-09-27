@@ -16,7 +16,6 @@ import {
   Reply,
   Send,
   Smile,
-  Star,
   Trash2,
   X,
 } from "lucide-react";
@@ -260,9 +259,6 @@ function SelectionToolbar({ count, onClear }: { count: number; onClear: () => vo
         <Forward size={14} /> Forward
       </button>
       <button type="button">
-        <Star size={14} /> Star
-      </button>
-      <button type="button">
         <Copy size={14} /> Copy
       </button>
       <button type="button" onClick={onClear}>
@@ -476,13 +472,18 @@ function ReactionBar({ reactions, onToggle }: { reactions: Reaction[]; onToggle:
 }
 
 function MessageMeta({ message }: { message: Message }) {
+  const waitingForConnection = message.syncState === "queued" && message.deliveryState === "pending";
+
+  if (waitingForConnection) {
+    return null;
+  }
+
   return (
     <footer className="message-meta">
       <time>{formatMessageTime(message.createdAt)}</time>
       {message.edited ? <span>edited</span> : null}
-      {message.syncState === "queued" ? <span>queued</span> : null}
-      {message.syncState === "sending" ? <span>sending</span> : null}
-      {message.mine ? <DeliveryIndicator state={message.deliveryState} /> : null}
+      {!waitingForConnection && message.syncState === "sending" ? <span>sending</span> : null}
+      {message.mine && !waitingForConnection ? <DeliveryIndicator state={message.deliveryState} /> : null}
     </footer>
   );
 }
@@ -533,9 +534,6 @@ function MessageMenu({
       </button>
       <button type="button" role="menuitem">
         <Forward size={14} /> Forward
-      </button>
-      <button type="button" role="menuitem">
-        <Star size={14} /> Star
       </button>
       <button type="button" role="menuitem" onClick={onSelect}>
         <Check size={14} /> Select
