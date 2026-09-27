@@ -2,17 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import type { PrimarySection, ThemeMode } from "./entities/types";
 import { AppShell } from "./components/shell";
 import type { ComposerMode } from "./components/messaging";
-import {
-  BrowserStorageLocalRepository,
-  FakeMessageTransport,
-  createLocalFirstApp,
-  useLocalFirstSnapshot,
-} from "./app/local-first";
+import { createSeyloqApplication } from "./app/platform";
+import { useLocalFirstSnapshot } from "./app/local-first";
 
-const localFirstApp = createLocalFirstApp({
-  repository: new BrowserStorageLocalRepository(),
-  transport: new FakeMessageTransport(),
-});
+const localFirstApp = createSeyloqApplication();
 
 export function App() {
   const [section, setSection] = useState<PrimarySection>("chats");
@@ -36,11 +29,11 @@ export function App() {
   );
 
   const editMessage = (messageId: string, text: string) => {
-    localFirstApp.editMessage(messageId, text);
+    void localFirstApp.editMessage(messageId, text);
   };
 
   const deleteMessage = (messageId: string) => {
-    localFirstApp.deleteMessage(messageId);
+    void localFirstApp.deleteMessage(messageId);
     setSelectedIds((current) => {
       const next = new Set(current);
       next.delete(messageId);
@@ -65,7 +58,7 @@ export function App() {
   };
 
   const toggleReaction = (messageId: string, emoji: string) => {
-    localFirstApp.toggleReaction(messageId, emoji);
+    void localFirstApp.toggleReaction(messageId, emoji);
   };
 
   useEffect(() => {

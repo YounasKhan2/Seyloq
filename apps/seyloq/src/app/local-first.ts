@@ -2,6 +2,7 @@ import { useMemo, useSyncExternalStore } from "react";
 import { conversations as seedConversations, messages as seedMessages } from "../data/seed";
 import type { Conversation, Message, MessageReference, Reaction } from "../entities/types";
 import type { ComposerPayload } from "../components/messaging";
+import { CURRENT_DEVICE_ID, CURRENT_USER_ID, UuidV7Generator } from "./identity";
 
 export type SyncState = "local" | "queued" | "sending" | "acknowledged" | "failed";
 export type ConnectivityState = "unknown" | "offline" | "connecting" | "online" | "degraded";
@@ -14,7 +15,7 @@ export type Clock = {
 };
 
 export type IdGenerator = {
-  next(prefix: string, at?: Date): string;
+  next(prefix?: string, at?: Date): string;
 };
 
 export type OutboxOperation = {
@@ -37,6 +38,8 @@ export type SendMessageOperationPayload = {
   messageId: string;
   conversationId: string;
   senderId: string;
+  authorUserId: string;
+  originDeviceId: string;
   text: string;
   replyTo?: MessageReference;
   createdAt: string;
@@ -100,10 +103,10 @@ export type LocalFirstApp = {
   subscribe(listener: () => void): () => void;
   getSnapshot(): LocalStateSnapshot;
   sendMessage(conversationId: string, payload: ComposerPayload): Promise<void>;
-  editMessage(messageId: string, text: string): void;
-  deleteMessage(messageId: string): void;
+  editMessage(messageId: string, text: string): Promise<void>;
+  deleteMessage(messageId: string): Promise<void>;
   retryMessage(messageId: string): Promise<void>;
-  toggleReaction(messageId: string, emoji: string): void;
+  toggleReaction(messageId: string, emoji: string): Promise<void>;
   saveDraft(conversationId: string, text: string): void;
   processOutbox(): Promise<void>;
   setConnectivity(state: ConnectivityState): void;
@@ -143,6 +146,8 @@ export class MonotonicIdGenerator implements IdGenerator {
     return `${prefix}_${time}${counter}${random}`;
   }
 }
+
+export { UuidV7Generator };
 
 export class MemoryLocalRepository implements LocalTransactionRepository {
   private state: LocalStateSnapshot;
@@ -296,7 +301,7 @@ export function createLocalFirstApp({
   repository,
   transport,
   clock = new SystemClock(),
-  ids = new MonotonicIdGenerator(),
+  ids = new UuidV7Generator(),
 }: {
   repository: LocalTransactionRepository;
   transport: MessageTransport;
@@ -326,15 +331,17 @@ export function createLocalFirstApp({
 
     async sendMessage(conversationId, payload) {
       const createdAt = nowIso();
-      const messageId = ids.next("msg", new Date(createdAt));
-      const operationId = ids.next("op", new Date(createdAt));
+      const messageId = ids.next("message", new Date(createdAt));
+      const operationId = ids.next("operation", new Date(createdAt));
       const replyTo = payload.mode.kind === "reply" ? payload.mode.message : undefined;
 
       repository.transaction(() => {
         repository.upsertMessage({
           id: messageId,
           conversationId,
-          senderId: "me",
+          senderId: CURRENT_USER_ID,
+          authorUserId: CURRENT_USER_ID,
+          originDeviceId: CURRENT_DEVICE_ID,
           kind: "text",
           text: payload.text,
           replyTo,
@@ -352,12 +359,14 @@ export function createLocalFirstApp({
           payload: {
             messageId,
             conversationId,
-            senderId: "me",
+            senderId: CURRENT_USER_ID,
+            authorUserId: CURRENT_USER_ID,
+            originDeviceId: CURRENT_DEVICE_ID,
             text: payload.text,
             replyTo,
             createdAt,
           },
-          idempotencyKey: messageId,
+          idempotencyKey: operationId,
           attemptCount: 0,
           nextAttemptAt: createdAt,
           createdAt,
@@ -371,12 +380,12 @@ export function createLocalFirstApp({
       await app.processOutbox();
     },
 
-    editMessage(messageId, text) {
+    async editMessage(messageId, text) {
       repository.transaction(() => repository.updateMessage(messageId, { text, edited: true }));
       emit();
     },
 
-    deleteMessage(messageId) {
+    async deleteMessage(messageId) {
       repository.transaction(() => repository.deleteMessage(messageId));
       emit();
     },
@@ -399,7 +408,7 @@ export function createLocalFirstApp({
       await app.processOutbox();
     },
 
-    toggleReaction(messageId, emoji) {
+    async toggleReaction(messageId, emoji) {
       const message = repository.getMessage(messageId);
       if (!message) return;
       repository.transaction(() => repository.updateMessage(messageId, { reactions: toggleReaction(message.reactions ?? [], emoji) }));
