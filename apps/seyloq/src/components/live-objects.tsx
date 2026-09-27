@@ -1,4 +1,4 @@
-import { CalendarDays, CheckSquare, MapPin, ReceiptText } from "lucide-react";
+import { CalendarDays, CheckSquare, MapPin, ReceiptText, Vote } from "lucide-react";
 import type { LiveObject } from "../entities/types";
 import { Badge } from "./primitives";
 
@@ -7,6 +7,9 @@ const liveObjectIcons = {
   "live-location": MapPin,
   expense: ReceiptText,
   checklist: CheckSquare,
+  poll: Vote,
+  decision: CheckSquare,
+  location: MapPin,
 };
 
 export function LiveObjectCard({ object }: { object: LiveObject }) {
@@ -16,7 +19,7 @@ export function LiveObjectCard({ object }: { object: LiveObject }) {
     <article className="live-object" tabIndex={0} aria-label={`${object.type}: ${object.title}`}>
       <LiveObjectHeader icon={<Icon size={15} />} title={object.title} status={object.status} />
       <LiveObjectBody object={object} />
-      <LiveObjectFooter meta={object.meta} />
+      <LiveObjectFooter meta={object.meta} syncState={object.syncState} sourceMessageId={object.sourceMessageId} />
     </article>
   );
 }
@@ -33,8 +36,10 @@ export function LiveObjectHeader({
   return (
     <header className="live-object-header">
       <span className="live-object-icon">{icon}</span>
-      <strong>{title}</strong>
-      <Badge tone="accent">{status}</Badge>
+      <span className="live-object-title">
+        <strong>{title}</strong>
+        <Badge tone="accent">{status}</Badge>
+      </span>
     </header>
   );
 }
@@ -52,6 +57,31 @@ export function LiveObjectBody({ object }: { object: LiveObject }) {
   );
 }
 
-export function LiveObjectFooter({ meta }: { meta: string }) {
-  return <footer className="live-object-footer">{meta}</footer>;
+export function LiveObjectFooter({
+  meta,
+  syncState,
+  sourceMessageId,
+}: {
+  meta: string;
+  syncState?: string;
+  sourceMessageId?: string;
+}) {
+  const readableState =
+    syncState === "locally-modified"
+      ? "Waiting to sync"
+      : syncState === "syncing"
+        ? "Syncing"
+        : syncState === "stale"
+          ? "Needs refresh"
+          : syncState === "unavailable"
+            ? "Unavailable"
+            : "Up to date";
+
+  return (
+    <footer className="live-object-footer">
+      <span>{meta}</span>
+      <span>{readableState}</span>
+      {sourceMessageId ? <span>From message</span> : null}
+    </footer>
+  );
 }

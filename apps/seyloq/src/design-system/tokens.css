@@ -41,9 +41,10 @@
   --control-touch: 40px;
   --pane-rail: 56px;
   --pane-chat-list: 304px;
-  --pane-context: 320px;
+  --pane-context: 300px;
   --z-header: 10;
   --z-overlay: 40;
+  --z-modal: 60;
   --motion-fast: 120ms;
   --motion-normal: 180ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);

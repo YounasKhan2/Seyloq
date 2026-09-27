@@ -64,9 +64,11 @@ export type Conversation = {
   lastMessage: string;
   lastActivity: string;
   participants: Array<UserId | string>;
+  draftPreview?: string;
+  pendingCount?: number;
 };
 
-export type LiveObjectType = "event" | "live-location" | "expense" | "checklist";
+export type LiveObjectType = "event" | "live-location" | "expense" | "checklist" | "poll" | "decision" | "location";
 
 export type LiveObject = {
   id: LiveObjectId;
@@ -76,6 +78,8 @@ export type LiveObject = {
   meta: string;
   status: string;
   items: string[];
+  syncState?: "fresh" | "locally-modified" | "syncing" | "stale" | "unavailable";
+  sourceMessageId?: MessageId;
 };
 
 export type MessageKind = "text" | "image" | "video" | "file" | "voice" | "live-object" | "system";

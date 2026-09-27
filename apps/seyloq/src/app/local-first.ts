@@ -495,7 +495,7 @@ export function createSeedSnapshot(): LocalStateSnapshot {
     conversations: seedConversations,
     messages: seedMessages.map((message) => ({
       ...message,
-      syncState: message.mine ? "acknowledged" : undefined,
+      syncState: message.syncState ?? (message.mine ? "acknowledged" : undefined),
     })),
     outbox: [],
     drafts: [],
