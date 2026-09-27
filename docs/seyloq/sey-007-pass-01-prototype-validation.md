@@ -42,7 +42,7 @@ The implementation remains in the existing Seyloq React/Tauri app and reuses the
 
 ## Interaction And State Inventory
 
-- Message actions: Reply, React, Copy, Forward, Star, Select, Edit, Delete, Turn Into.
+- Message actions: Reply, React, Copy, Forward, Select, Edit, Delete, Turn Into.
 - Desktop message menu: hover button and right-click.
 - Mobile message menu: long press.
 - Composer states represented: empty, typing, reply/edit hooks, attachment menu, voice button, sending/queued/offline, failed retry.
