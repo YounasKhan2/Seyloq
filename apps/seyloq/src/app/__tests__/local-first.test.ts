@@ -116,6 +116,27 @@ describe("local-first application engine", () => {
     expect(restored.getDraft("family")).toBe("Dinner after 8");
   });
 
+  it("edits, deletes, and toggles reactions with observable application mutations", async () => {
+    const { app } = createHarness();
+
+    await app.sendMessage("hunza-trip", textPayload("Mutable local message"));
+    const created = app.getSnapshot().messages.find((message) => message.text === "Mutable local message");
+
+    await app.editMessage(created!.id, "Edited local message");
+    expect(app.getSnapshot().messages.find((message) => message.id === created!.id)?.text).toBe("Edited local message");
+    expect(app.getSnapshot().messages.find((message) => message.id === created!.id)?.edited).toBe(true);
+
+    await app.toggleReaction(created!.id, "👍");
+    expect(app.getSnapshot().messages.find((message) => message.id === created!.id)?.reactions?.[0]).toMatchObject({
+      emoji: "👍",
+      count: 1,
+      reactedByMe: true,
+    });
+
+    await app.deleteMessage(created!.id);
+    expect(app.getSnapshot().messages.some((message) => message.id === created!.id)).toBe(false);
+  });
+
   it("generates canonical UUIDv7 values without using them as message order authority", () => {
     const ids = Array.from({ length: 64 }, () => createUuidV7());
 

@@ -103,10 +103,10 @@ export type LocalFirstApp = {
   subscribe(listener: () => void): () => void;
   getSnapshot(): LocalStateSnapshot;
   sendMessage(conversationId: string, payload: ComposerPayload): Promise<void>;
-  editMessage(messageId: string, text: string): void;
-  deleteMessage(messageId: string): void;
+  editMessage(messageId: string, text: string): Promise<void>;
+  deleteMessage(messageId: string): Promise<void>;
   retryMessage(messageId: string): Promise<void>;
-  toggleReaction(messageId: string, emoji: string): void;
+  toggleReaction(messageId: string, emoji: string): Promise<void>;
   saveDraft(conversationId: string, text: string): void;
   processOutbox(): Promise<void>;
   setConnectivity(state: ConnectivityState): void;
@@ -380,12 +380,12 @@ export function createLocalFirstApp({
       await app.processOutbox();
     },
 
-    editMessage(messageId, text) {
+    async editMessage(messageId, text) {
       repository.transaction(() => repository.updateMessage(messageId, { text, edited: true }));
       emit();
     },
 
-    deleteMessage(messageId) {
+    async deleteMessage(messageId) {
       repository.transaction(() => repository.deleteMessage(messageId));
       emit();
     },
@@ -408,7 +408,7 @@ export function createLocalFirstApp({
       await app.processOutbox();
     },
 
-    toggleReaction(messageId, emoji) {
+    async toggleReaction(messageId, emoji) {
       const message = repository.getMessage(messageId);
       if (!message) return;
       repository.transaction(() => repository.updateMessage(messageId, { reactions: toggleReaction(message.reactions ?? [], emoji) }));

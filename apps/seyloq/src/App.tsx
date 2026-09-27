@@ -29,11 +29,11 @@ export function App() {
   );
 
   const editMessage = (messageId: string, text: string) => {
-    localFirstApp.editMessage(messageId, text);
+    void localFirstApp.editMessage(messageId, text);
   };
 
   const deleteMessage = (messageId: string) => {
-    localFirstApp.deleteMessage(messageId);
+    void localFirstApp.deleteMessage(messageId);
     setSelectedIds((current) => {
       const next = new Set(current);
       next.delete(messageId);
@@ -58,7 +58,7 @@ export function App() {
   };
 
   const toggleReaction = (messageId: string, emoji: string) => {
-    localFirstApp.toggleReaction(messageId, emoji);
+    void localFirstApp.toggleReaction(messageId, emoji);
   };
 
   useEffect(() => {

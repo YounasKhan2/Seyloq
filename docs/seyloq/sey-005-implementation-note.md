@@ -21,6 +21,9 @@ The Tauri boundary exposes typed application use cases:
 - `load_messages`
 - `send_message`
 - `retry_operation`
+- `edit_message`
+- `delete_message`
+- `toggle_reaction`
 - `save_draft`
 - `load_draft`
 - `mark_read`
@@ -43,6 +46,30 @@ React
 ```
 
 Browser development mode uses `BrowserStorageLocalRepository` behind the same relevant local-first contract. It remains useful for UI development, browser preview and tests, but it is not the production persistence architecture.
+
+## Native Module Architecture
+
+The Rust native side is organized as:
+
+```text
+src/
+  lib.rs
+  commands/
+    local_state.rs
+    messaging.rs
+  application/
+    messaging.rs
+  domain/
+    errors.rs
+    models.rs
+  local_store/
+    database.rs
+    migrations.rs
+    repository.rs
+    seed.rs
+```
+
+`lib.rs` owns Tauri composition, managed state and command registration. Commands deserialize typed input and perform boundary validation. The application layer owns use-case intent. The local store owns SQLite opening, migrations, row mapping and durable transactions.
 
 ## Identity Contracts
 
@@ -76,6 +103,16 @@ message acknowledged metadata
 ```
 
 in one local transaction.
+
+## Messaging Interaction Semantics
+
+The production Tauri adapter no longer exposes silent no-ops for currently reachable messaging interactions.
+
+- `editMessage` calls `edit_message`, validates the target exists and is locally editable, updates text and marks the message edited.
+- `deleteMessage` calls `delete_message`, validates the target exists and removes the local message.
+- `toggleReaction` calls `toggle_reaction`, validates the target exists and persists the local reaction state.
+
+The TypeScript application contract returns promises for these operations. If an awaited operation resolves, the mutation happened. Missing native targets return structured errors instead of pretending success.
 
 ## Secure Storage Boundary
 

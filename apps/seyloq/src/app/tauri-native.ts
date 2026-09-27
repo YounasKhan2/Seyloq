@@ -16,6 +16,16 @@ type NativeAckInput = {
   acknowledgedAt: string;
 };
 
+type NativeEditMessageInput = {
+  messageId: string;
+  text: string;
+};
+
+type NativeToggleReactionInput = {
+  messageId: string;
+  emoji: string;
+};
+
 export function isTauriRuntime() {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
@@ -53,12 +63,16 @@ export function createTauriNativeLocalFirstApp(): LocalFirstApp {
       emit();
     },
 
-    editMessage() {
-      // Message editing remains a browser-development interaction until a native use case is approved.
+    async editMessage(messageId: string, text: string) {
+      snapshot = await invoke<LocalStateSnapshot>("edit_message", {
+        input: { messageId, text } satisfies NativeEditMessageInput,
+      });
+      emit();
     },
 
-    deleteMessage() {
-      // Message deletion remains a browser-development interaction until a native use case is approved.
+    async deleteMessage(messageId: string) {
+      snapshot = await invoke<LocalStateSnapshot>("delete_message", { messageId });
+      emit();
     },
 
     async retryMessage(messageId: string) {
@@ -66,8 +80,11 @@ export function createTauriNativeLocalFirstApp(): LocalFirstApp {
       emit();
     },
 
-    toggleReaction() {
-      // Reactions are still UI-only in SEY-005; durable reaction protocol belongs to a later milestone.
+    async toggleReaction(messageId: string, emoji: string) {
+      snapshot = await invoke<LocalStateSnapshot>("toggle_reaction", {
+        input: { messageId, emoji } satisfies NativeToggleReactionInput,
+      });
+      emit();
     },
 
     saveDraft(conversationId: string, text: string) {
